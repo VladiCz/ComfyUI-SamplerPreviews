@@ -8,7 +8,7 @@ app.registerExtension({
     name: "live.sampler.preview.ux",
 
     setup() {
-        const ENABLE_BUFFER = true;
+        const ENABLE_BUFFER = false;
         const BUFFER_FPS = 8;
 
         const previews = new Map();
