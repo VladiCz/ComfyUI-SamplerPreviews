@@ -562,17 +562,9 @@ app.registerExtension({
             if (max) entry.bar.style.width = `${(value / max) * 100}%`;
         });
 
-        const socket = app.api.socket;
+        let socket = null;
 
-        function findImageStart(bytes) {
-            for (let i = 0; i < bytes.length - 3; i++) {
-                if (bytes[i] === 0xff && bytes[i + 1] === 0xd8) return i;
-                if (bytes[i] === 0x89 && bytes[i + 1] === 0x50 && bytes[i + 2] === 0x4e && bytes[i + 3] === 0x47) return i;
-            }
-            return -1;
-        }
-
-        socket.addEventListener("message", async (event) => {
+        async function handleSocketMessage(event) {
             if (!previewEnabled) return;
             let buffer;
             if (event.data instanceof ArrayBuffer) buffer = event.data;
@@ -598,7 +590,37 @@ app.registerExtension({
                 entry.lastUrl = url;
                 entry.img.src = url;
             }
+        }
+
+        function bindSocketListener() {
+            const nextSocket = app.api.socket;
+            if (!nextSocket || nextSocket === socket) return;
+
+            if (socket) {
+                socket.removeEventListener("message", handleSocketMessage);
+            }
+
+            socket = nextSocket;
+            socket.addEventListener("message", handleSocketMessage);
+        }
+
+        function findImageStart(bytes) {
+            for (let i = 0; i < bytes.length - 3; i++) {
+                if (bytes[i] === 0xff && bytes[i + 1] === 0xd8) return i;
+                if (bytes[i] === 0x89 && bytes[i + 1] === 0x50 && bytes[i + 2] === 0x4e && bytes[i + 3] === 0x47) return i;
+            }
+            return -1;
+        }
+
+        bindSocketListener();
+        window.addEventListener("focus", bindSocketListener);
+        window.addEventListener("online", bindSocketListener);
+        document.addEventListener("visibilitychange", () => {
+            if (document.visibilityState === "visible") {
+                bindSocketListener();
+            }
         });
+        setInterval(bindSocketListener, 5000);
 
         if (ENABLE_BUFFER) {
             setInterval(() => {
